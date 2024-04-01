@@ -75,7 +75,7 @@ def parse_data_from_cli_correct_image_distortion()->argparse.ArgumentParser:
     parser.add_argument('--format_of_distorted_images',
                         type=str,
                         required=True,
-                        choices=['PNG', 'JPG', 'JPEG', 'BMP'],
+                        choices=['png', 'jpg', 'jpeg', 'bmp'],
                         help='Format of distorted images [PNG, JPG, JPEG, BMP]')
     parser.add_argument('--path_to_undistorted_images',
                         type=str,
@@ -120,8 +120,10 @@ def detect_chessboard_corners(
     path_to_calibration_images = args.path_to_calibration_images
 
     # Load calibration images
-    full_path = ''.join([path_to_calibration_images, '*.', args.calibration_image_format])
+    full_path = ''.join([path_to_calibration_images, '/*.', args.calibration_image_format])
     images = glob.glob(full_path)
+    print(full_path)
+    
 
     # Create a new window for visualisation purposes
     cv2.namedWindow('Current calibration image', cv2.WINDOW_NORMAL)
@@ -132,6 +134,7 @@ def detect_chessboard_corners(
 
         # Read current calibration image
         img = cv2.imread(fname)
+        print('reading...')
 
         if img.size == 0:
             print(f"ERROR! - image {fname} does not exist")
@@ -171,6 +174,7 @@ def detect_chessboard_corners(
     cv2.destroyAllWindows()
 
     # Return required parameters
+    print(objpoints, imgpoints, dim)
     return (objpoints, imgpoints, dim)
 
 

@@ -46,7 +46,7 @@ def run_pipeline(args:argparse.ArgumentParser)->None:
     
     # Load distorted images
     list_of_undistorted_images = glob.glob(''.join([args.path_to_distorted_images, 
-                                                    '*', 
+                                                    '/*.', 
                                                     args.format_of_distorted_images]))
     
     # Undistort images

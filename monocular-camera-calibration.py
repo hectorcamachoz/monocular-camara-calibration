@@ -14,6 +14,11 @@
     --calibration_image_format JPG \
     --chessboard_size 9 6 \
     --output_calibration_parameters calibration-parameters/calibration_data.json
+
+    python3 monocular-camera-calibration.py --path_to_calibration_images calibration-images 
+    --calibration_image_format jpg 
+    --chessboard_size 9 6 
+    --output_calibration_parameters calibration-parameters/calibration_data.json
 """
 
 # Import standard libraries
