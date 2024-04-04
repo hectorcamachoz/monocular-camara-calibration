@@ -8,7 +8,8 @@
     Last updated: 
     
     Example of usage:
-    python get-measurements.py --cam_index 0 --Z 56 --cal_file calibration_data.json
+    python3 get-mesurments.py --cam_index 0 --Z 56 --cal_file calibration-parameters/calibration_data.json
+
 """
 # Import standard libraries
 import numpy as np
@@ -20,6 +21,7 @@ import sys
 import textwrap
 import json
 import platform
+import math
 from numpy.typing import NDArray
 from typing import List, Tuple
 
@@ -27,6 +29,13 @@ from typing import List, Tuple
 import correct_image_distortion as correct
 import monocular_camera_calibration_helpers as helpers
 
+
+points = []
+coords = []
+lines = []
+left_clk_block = False 
+wh = True
+l = True
 def parse_data_from_live_camera_mesurments()->argparse.ArgumentParser:
     """
     Parse command-line arguments for camera calibration.
@@ -146,27 +155,132 @@ def undistort_images(
     # Crop image
     x, y, w, h = roi
     dst = dst[y:y+h, x:x+w]
-    return dst
+    return dst        
 
+def draw(im_copy:cv2, points):
+  
+        for point in points:
+            
+          
+            cv2.circle(im_copy,(point[0],point[1]), 5, (255,0,0), -1)
+            cv2.waitKey(10)
 
-def run_pipeline(args:argparse.ArgumentParser)->None:
+        for i in range(len(points) - 1):
+            cv2.line(im_copy, points[i], points[i+1], (0, 0, 255), 3)
+            if left_clk_block == True:
+                p = len(points)-1
+                cv2.line(im_copy, points[p], points[0], (0, 0, 255), 3)
+
+def compute_line_segments(im_copy:cv2, mtx:NDArray, dist:NDArray,points):
+    global left_clk_block
+    global wh
     
+    #wh = True
+    
+    lines_calculated = False
+    while wh == True:
+        
+        if left_clk_block == True :
+            """ p = len(points)-1
+            cv2.line(im_copy, points[p], points[0], (0, 0, 255), 3) """
+            for i in range(len(points)):
+                if len(points) == len(coords):
+                    break
+                coor_X = (np.float64(points[i][0]) - mtx[0,2]) * np.float64(args.Z) / mtx[0,0]
+                coor_Y = (np.float64(points[i][1]) - mtx[1,2]) * np.float64(args.Z) / mtx[1,1]
+                coords.append( [coor_X,coor_Y,args.Z] )
+            
+            if len(coords) > 1:
+                c = 0
+                for j in range(len(coords)):
+                    
+                    if j == len(coords)-1 and c ==0:
+                        
+                        ln = math.sqrt((abs(coords[0][0]) - abs(coords[j][0]))**2 
+                                        + (abs(coords[0][1]) - abs(coords[j][1]))**2)
+                        lines.append(ln)
+                        c=1
+                        
+                        print(lines)
+                        lines_calculated = True  
+                          
+                        break
+                    if len(lines)<=len(coords)-1 and lines_calculated == False:
+                        ln = math.sqrt((abs(coords[j+1][0]) - abs(coords[j][0]))**2 
+                                        + (abs(coords[j+1][1]) - abs(coords[j][1]))**2)
+                        lines.append(ln)
+                        print('2')
+                        print(lines)
+        wh = False
+    
+    
+def Mouse_events(event, x, y, flags, param):
+    global left_clk_block
+    global wh
+
+    
+    i = len(points)
+    if event != cv2.EVENT_RBUTTONDOWN and left_clk_block == False:
+        if event == cv2.EVENT_LBUTTONDOWN:
+            print('Punto ',i, ' colocado')
+            points.append([x,y])
+          
+            
+    if event == cv2.EVENT_MBUTTONDOWN:
+        if left_clk_block == False:
+            if len(points) > 1:
+                print('Calculando longitud de lineas...')
+                left_clk_block = True  
+                wh = True
+               
+            else: 
+                print('No hay suficientes puntos')
+      
+
+    if flags & cv2.EVENT_FLAG_CTRLKEY:
+        print('Borrando...')
+        points.clear()
+        coords.clear()
+        lines.clear()
+        left_clk_block = False
+        wh = False
+        run_pipeline(args)
+    
+def run_pipeline(args:argparse.ArgumentParser)->None:
+
     cap = initialise_camera(args)
     camera_matrix, distortion_coefficients = load_calibration_parameters_from_json_file(args)
+
+    cv2.namedWindow('Undistorted Live Camara',cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback('Undistorted Live Camara', Mouse_events)
+    #cv2.setMouseCallback('Undistorted Live Camara', KeyboardEvent)
+    size = 640,360
+    
     while cap.isOpened():
         ret, frame = cap.read()
-        cv2.imshow('Distorted Live Camara',frame)
-
+        
         dst = undistort_images(frame, 
                      camera_matrix, 
                      distortion_coefficients)
-        cv2.imshow('Undistorted Live Camara',dst)
+        dst = cv2.resize(dst, size)
+        im_copy = dst.copy()
+        
+        compute_line_segments(im_copy,camera_matrix, 
+                              distortion_coefficients, 
+                              points)
+        draw(im_copy, points)
+        cv2.imshow('Undistorted Live Camara',im_copy)
         
 
-        # Press Q on keyboard to  exit
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        key = cv2.waitKey(1) & 0xFF
+        # Press Q on keyboard to  exit 
+        if key == ord('q'):
             break
 
+    
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     args = parse_data_from_live_camera_mesurments()
