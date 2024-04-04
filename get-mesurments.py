@@ -158,6 +158,14 @@ def undistort_images(
     return dst        
 
 def draw(im_copy:cv2, points):
+        """
+        Draws circles and lines on the given image copy using the provided points.
+        Args:
+            im_copy (cv2): The image copy on which to draw.
+            points: The list of points to use for drawing circles and lines.
+        Returns:
+            None
+        """
   
         for point in points:
             
@@ -172,10 +180,23 @@ def draw(im_copy:cv2, points):
                 cv2.line(im_copy, points[p], points[0], (0, 0, 255), 3)
 
 def compute_line_segments(im_copy:cv2, mtx:NDArray, dist:NDArray,points):
+    """
+    A function that computes line segments based on given points and camera parameters.
+    
+    Parameters:
+    - im_copy: cv2 - the image copy to work with
+    - mtx: NDArray - camera matrix
+    - dist: NDArray - distortion coefficients
+    - points: the points to compute line segments from
+    
+    Returns:
+    No explicit return value, but updates global variables lines_calculated and lines_sorted
+    """
+    
     global left_clk_block
     global wh
-    
     global lines_calculated 
+
     while wh == True:
         if left_clk_block == True :
             
@@ -221,6 +242,14 @@ def compute_line_segments(im_copy:cv2, mtx:NDArray, dist:NDArray,points):
         wh = False
 
 def compute_perimeter(lines):
+    """
+    A function to compute the perimeter of a figure based on input lines.
+    This function takes a list of lines as input and calculates the perimeter 
+    by summing up the lengths of all the lines. It then prints the perimeter 
+    of the figure or the length of the line based on the number of lines provided.
+    If there is only one line, it prints the length of that line.
+    """
+    
     global lines_calculated
     while lines_calculated == True:
         perimeter = 0
@@ -236,18 +265,23 @@ def compute_perimeter(lines):
 
     
 def Mouse_events(event, x, y, flags, param):
+    """
+    A function to handle mouse events in OpenCV. 
+    Parameters:
+        event: The type of mouse event that occurred.
+        x: The x-coordinate of the mouse event.
+        y: The y-coordinate of the mouse event.
+        flags: Additional flags passed by OpenCV.
+        param: Additional parameters passed by OpenCV.
+    """
     global left_clk_block
     global wh
-
-    
     i = len(points)
     if event != cv2.EVENT_RBUTTONDOWN and left_clk_block == False:
         if event == cv2.EVENT_LBUTTONDOWN:
             print('Punto ',i, ' colocado')
-            points.append([x,y])
-
+            points.append([x,y])      
           
-            
     if event == cv2.EVENT_MBUTTONDOWN:
         if left_clk_block == False:
             if len(points) > 1:
@@ -258,7 +292,6 @@ def Mouse_events(event, x, y, flags, param):
             else: 
                 print('No hay suficientes puntos')
       
-
     if flags & cv2.EVENT_FLAG_CTRLKEY:
         print('Borrando puntos...\n\n')
         points.clear()
@@ -270,13 +303,21 @@ def Mouse_events(event, x, y, flags, param):
         run_pipeline(args)
     
 def run_pipeline(args:argparse.ArgumentParser)->None:
+    """
+    A function to run the entire pipeline, including camera initialization, undistortion, and live display with interactive controls.
+    
+    Args:
+        args (argparse.ArgumentParser): The command line arguments parsed by argparse.
+
+    Returns:
+        None
+    """
 
     cap = initialise_camera(args)
     camera_matrix, distortion_coefficients = load_calibration_parameters_from_json_file(args)
 
     cv2.namedWindow('Undistorted Live Camara',cv2.WINDOW_NORMAL)
     cv2.setMouseCallback('Undistorted Live Camara', Mouse_events)
-    #cv2.setMouseCallback('Undistorted Live Camara', KeyboardEvent)
     size = 640,360
     print("\n-- BIENVENIDO --")
     print("\n- Presione en pantalla la tecla 'q' para salir del programa.",
