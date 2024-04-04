@@ -35,7 +35,7 @@ coords = []
 lines = []
 left_clk_block = False 
 wh = True
-l = True
+lines_calculated = False
 def parse_data_from_live_camera_mesurments()->argparse.ArgumentParser:
     """
     Parse command-line arguments for camera calibration.
@@ -175,14 +175,10 @@ def compute_line_segments(im_copy:cv2, mtx:NDArray, dist:NDArray,points):
     global left_clk_block
     global wh
     
-    #wh = True
-    
-    lines_calculated = False
+    global lines_calculated 
     while wh == True:
-        
         if left_clk_block == True :
-            """ p = len(points)-1
-            cv2.line(im_copy, points[p], points[0], (0, 0, 255), 3) """
+            
             for i in range(len(points)):
                 if len(points) == len(coords):
                     break
@@ -191,28 +187,53 @@ def compute_line_segments(im_copy:cv2, mtx:NDArray, dist:NDArray,points):
                 coords.append( [coor_X,coor_Y,args.Z] )
             
             if len(coords) > 1:
-                c = 0
+                
                 for j in range(len(coords)):
-                    
-                    if j == len(coords)-1 and c ==0:
-                        
+                    if len(coords) == 2:
+                        ln = math.sqrt((abs(coords[0][0]) - abs(coords[1][0]))**2 
+                                        + (abs(coords[0][1]) - abs(coords[1][1]))**2)
+                        lines.append(ln)
+                        lines_calculated = True  
+                        print('Linea ', j, ': ', lines[j])
+                        break
+                    if j == len(coords)-1:
                         ln = math.sqrt((abs(coords[0][0]) - abs(coords[j][0]))**2 
                                         + (abs(coords[0][1]) - abs(coords[j][1]))**2)
                         lines.append(ln)
-                        c=1
-                        
-                        print(lines)
                         lines_calculated = True  
-                          
+                        print('Linea ', j, ': ', lines[j])
                         break
+
                     if len(lines)<=len(coords)-1 and lines_calculated == False:
                         ln = math.sqrt((abs(coords[j+1][0]) - abs(coords[j][0]))**2 
                                         + (abs(coords[j+1][1]) - abs(coords[j][1]))**2)
                         lines.append(ln)
-                        print('2')
-                        print(lines)
+                    print('Linea ', j, ': ', lines[j])
+                lines_sorted = sorted(lines, reverse=True)
+        
+            # Imprimir las distancias de las líneas ordenadas
+            print("\nLongitudes de líneas ordenadas de mayor a menor:\n")
+            
+            for line in lines_sorted:
+                index = lines.index(line)
+                print(f"Linea {index}: {line}") 
+                
         wh = False
-    
+
+def compute_perimeter(lines):
+    global lines_calculated
+    while lines_calculated == True:
+        perimeter = 0
+        for i in range(len(lines)):
+            perimeter = perimeter + lines[i]
+        if len(lines) != 1:
+            print("\nPerimetro de la figura: ",perimeter)
+            print("\n- Presione en pantalla la tecla 'ctrl' para borrar los puntos y tomar otra figura.",
+                "\n- Presione en pantalla la tecla 'q' para salir del programa.\n")
+        elif len(lines) == 1:
+            print("Longitud de la linea: ",lines[0])
+        lines_calculated = False
+
     
 def Mouse_events(event, x, y, flags, param):
     global left_clk_block
@@ -224,12 +245,13 @@ def Mouse_events(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             print('Punto ',i, ' colocado')
             points.append([x,y])
+
           
             
     if event == cv2.EVENT_MBUTTONDOWN:
         if left_clk_block == False:
             if len(points) > 1:
-                print('Calculando longitud de lineas...')
+                print('\nCalculando longitud de lineas...\n')
                 left_clk_block = True  
                 wh = True
                
@@ -238,12 +260,13 @@ def Mouse_events(event, x, y, flags, param):
       
 
     if flags & cv2.EVENT_FLAG_CTRLKEY:
-        print('Borrando...')
+        print('Borrando puntos...\n\n')
         points.clear()
         coords.clear()
         lines.clear()
         left_clk_block = False
         wh = False
+        lines_calculated = False
         run_pipeline(args)
     
 def run_pipeline(args:argparse.ArgumentParser)->None:
@@ -255,7 +278,9 @@ def run_pipeline(args:argparse.ArgumentParser)->None:
     cv2.setMouseCallback('Undistorted Live Camara', Mouse_events)
     #cv2.setMouseCallback('Undistorted Live Camara', KeyboardEvent)
     size = 640,360
-    
+    print("\n-- BIENVENIDO --")
+    print("\n- Presione en pantalla la tecla 'q' para salir del programa.",
+        "\n- Presione en pantalla la rueda del raton para terminar de seleccionar los puntos.\n")
     while cap.isOpened():
         ret, frame = cap.read()
         
@@ -269,6 +294,7 @@ def run_pipeline(args:argparse.ArgumentParser)->None:
                               distortion_coefficients, 
                               points)
         draw(im_copy, points)
+        compute_perimeter(lines)
         cv2.imshow('Undistorted Live Camara',im_copy)
         
 
@@ -276,8 +302,6 @@ def run_pipeline(args:argparse.ArgumentParser)->None:
         # Press Q on keyboard to  exit 
         if key == ord('q'):
             break
-
-    
 
     cap.release()
     cv2.destroyAllWindows()
