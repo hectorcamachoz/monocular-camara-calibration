@@ -134,7 +134,7 @@ def detect_chessboard_corners(
 
         # Read current calibration image
         img = cv2.imread(fname)
-        print('reading...')
+        
 
         if img.size == 0:
             print(f"ERROR! - image {fname} does not exist")
@@ -174,7 +174,7 @@ def detect_chessboard_corners(
     cv2.destroyAllWindows()
 
     # Return required parameters
-    print(objpoints, imgpoints, dim)
+    
     return (objpoints, imgpoints, dim)
 
 

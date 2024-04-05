@@ -14,25 +14,18 @@
 # Import standard libraries
 import numpy as np
 import cv2
-import glob
 import os
 import argparse
 import sys
 import textwrap
 import json
-import platform
-import math
 from numpy.typing import NDArray
 from typing import List, Tuple
-
-# Import Local Libraries
-import correct_image_distortion as correct
-import monocular_camera_calibration_helpers as helpers
-
 
 points = []
 coords = []
 lines = []
+rcoords = []
 left_clk_block = False 
 wh = True
 lines_calculated = False
@@ -155,9 +148,9 @@ def undistort_images(
     # Crop image
     x, y, w, h = roi
     dst = dst[y:y+h, x:x+w]
-    return dst        
+    return dst
 
-def draw(im_copy:cv2, points):
+def draw(im_copy:cv2, points:List)->None:
         """
         Draws circles and lines on the given image copy using the provided points.
         Args:
@@ -166,10 +159,8 @@ def draw(im_copy:cv2, points):
         Returns:
             None
         """
-  
         for point in points:
             
-          
             cv2.circle(im_copy,(point[0],point[1]), 5, (255,0,0), -1)
             cv2.waitKey(10)
 
@@ -179,7 +170,7 @@ def draw(im_copy:cv2, points):
                 p = len(points)-1
                 cv2.line(im_copy, points[p], points[0], (0, 0, 255), 3)
 
-def compute_line_segments(im_copy:cv2, mtx:NDArray, dist:NDArray,points):
+def compute_line_segments(im_copy:cv2, mtx:NDArray, dist:NDArray,points:List)->None:
     """
     A function that computes line segments based on given points and camera parameters.
     
@@ -203,32 +194,39 @@ def compute_line_segments(im_copy:cv2, mtx:NDArray, dist:NDArray,points):
             for i in range(len(points)):
                 if len(points) == len(coords):
                     break
-                coor_X = (np.float64(points[i][0]) - mtx[0,2]) * np.float64(args.Z) / mtx[0,0]
-                coor_Y = (np.float64(points[i][1]) - mtx[1,2]) * np.float64(args.Z) / mtx[1,1]
-                coords.append( [coor_X,coor_Y,args.Z] )
-            
+         
+                coor_X = (np.float64(points[i][0]) - mtx[0,2]) * (np.float64(args.Z) / mtx[0,0])
+                coor_Y = (np.float64(points[i][1]) - mtx[1,2]) * (np.float64(args.Z) / mtx[1,1])
+                coords.append( [coor_X,coor_Y] )
+               
             if len(coords) > 1:
                 
                 for j in range(len(coords)):
                     if len(coords) == 2:
-                        ln = math.sqrt((abs(coords[0][0]) - abs(coords[1][0]))**2 
+                                               
+                        ln = np.sqrt((abs(coords[0][0]) - abs(coords[1][0]))**2 
                                         + (abs(coords[0][1]) - abs(coords[1][1]))**2)
+                                      
                         lines.append(ln)
                         lines_calculated = True  
                         print('Linea ', j, ': ', lines[j])
                         break
                     if j == len(coords)-1:
-                        ln = math.sqrt((abs(coords[0][0]) - abs(coords[j][0]))**2 
+                                           
+                        ln = np.sqrt((abs(coords[0][0]) - abs(coords[j][0]))**2 
                                         + (abs(coords[0][1]) - abs(coords[j][1]))**2)
+                        
                         lines.append(ln)
                         lines_calculated = True  
                         print('Linea ', j, ': ', lines[j])
                         break
 
                     if len(lines)<=len(coords)-1 and lines_calculated == False:
-                        ln = math.sqrt((abs(coords[j+1][0]) - abs(coords[j][0]))**2 
-                                        + (abs(coords[j+1][1]) - abs(coords[j][1]))**2)
+
+                        ln = np.sqrt((abs(coords[j][0]) - abs(coords[j+1][0]))**2 
+                                        + (abs(coords[j][1]) - abs(coords[j+1][1]))**2)
                         lines.append(ln)
+
                     print('Linea ', j, ': ', lines[j])
                 lines_sorted = sorted(lines, reverse=True)
         
@@ -240,8 +238,7 @@ def compute_line_segments(im_copy:cv2, mtx:NDArray, dist:NDArray,points):
                 print(f"Linea {index}: {line}") 
                 
         wh = False
-
-def compute_perimeter(lines):
+def compute_perimeter(lines:List)->None:
     """
     A function to compute the perimeter of a figure based on input lines.
     This function takes a list of lines as input and calculates the perimeter 
@@ -264,7 +261,7 @@ def compute_perimeter(lines):
         lines_calculated = False
 
     
-def Mouse_events(event, x, y, flags, param):
+def Mouse_events(event:int, x:int, y:int, flags:int, param:int)->None:
     """
     A function to handle mouse events in OpenCV. 
     Parameters:
@@ -318,17 +315,18 @@ def run_pipeline(args:argparse.ArgumentParser)->None:
 
     cv2.namedWindow('Undistorted Live Camara',cv2.WINDOW_NORMAL)
     cv2.setMouseCallback('Undistorted Live Camara', Mouse_events)
-    size = 640,360
+    
     print("\n-- BIENVENIDO --")
     print("\n- Presione en pantalla la tecla 'q' para salir del programa.",
         "\n- Presione en pantalla la rueda del raton para terminar de seleccionar los puntos.\n")
+    size = 640, 480
     while cap.isOpened():
         ret, frame = cap.read()
         
         dst = undistort_images(frame, 
                      camera_matrix, 
                      distortion_coefficients)
-        dst = cv2.resize(dst, size)
+        #dst = cv2.resize(dst, size)
         im_copy = dst.copy()
         
         compute_line_segments(im_copy,camera_matrix, 
@@ -342,6 +340,9 @@ def run_pipeline(args:argparse.ArgumentParser)->None:
         key = cv2.waitKey(1) & 0xFF
         # Press Q on keyboard to  exit 
         if key == ord('q'):
+            points.clear()
+            coords.clear()
+            lines.clear()
             break
 
     cap.release()
